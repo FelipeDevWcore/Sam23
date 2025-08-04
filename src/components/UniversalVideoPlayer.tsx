@@ -310,8 +310,8 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
           debug: false,
           xhrSetup: (xhr, url) => {
             xhr.withCredentials = false;
-            // Adicionar token de autenticação para URLs SSH
-            if (src && (src.includes('/api/videos-ssh/') || src.includes('/content/'))) {
+            // Adicionar token de autenticação para URLs SSH e content
+            if (src && (src.includes('/api/videos-ssh/') || src.includes('/content/') || url.includes('/api/videos-ssh/'))) {
               const token = localStorage.getItem('auth_token');
               if (token) {
                 xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -397,9 +397,9 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
       if (src && src.includes('/api/videos-ssh/')) {
         video.setAttribute('preload', 'none'); // Não pré-carregar para economizar banda
         
-        // Para vídeos SSH, adicionar token como parâmetro na URL
+        // Para vídeos SSH, adicionar token como parâmetro na URL se não estiver presente
         const token = localStorage.getItem('auth_token');
-        if (token) {
+        if (token && !videoUrl.includes('token=')) {
           const urlWithToken = `${videoUrl}${videoUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
           video.src = urlWithToken;
         } else {
@@ -410,7 +410,7 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
       // Para vídeos via /content, também configurar headers de autenticação
       else if (src && src.includes('/content/')) {
         const token = localStorage.getItem('auth_token');
-        if (token) {
+        if (token && !src.includes('auth_token=')) {
           // Para vídeos /content, adicionar token como parâmetro
           const urlWithToken = `${src}${src.includes('?') ? '&' : '?'}auth_token=${encodeURIComponent(token)}`;
           video.src = urlWithToken;

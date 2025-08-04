@@ -11,7 +11,10 @@ const authMiddleware = async (req, res, next) => {
       console.log('❌ Token de acesso não fornecido:', {
         path: req.path,
         method: req.method,
-        headers: Object.keys(req.headers)
+        headers: Object.keys(req.headers),
+        query: Object.keys(req.query || {}),
+        hasAuthHeader: !!authHeader,
+        authHeaderStart: authHeader ? authHeader.substring(0, 10) : 'none'
       });
       return res.status(401).json({ 
         error: 'Token de acesso requerido',
@@ -53,6 +56,11 @@ const authMiddleware = async (req, res, next) => {
       }
 
       if (rows.length === 0) {
+        console.log('❌ Usuário não encontrado:', {
+          userId: decoded.userId,
+          tipo: decoded.tipo,
+          path: req.path
+        });
         return res.status(401).json({ error: 'Usuário não encontrado ou inativo' });
       }
 
@@ -70,8 +78,20 @@ const authMiddleware = async (req, res, next) => {
         codigo_servidor: user.codigo_servidor || null
       };
 
+      console.log('✅ Usuário autenticado:', {
+        id: user.codigo,
+        email: user.email,
+        tipo: user.tipo,
+        path: req.path
+      });
+
       next();
     } catch (jwtError) {
+      console.log('❌ Erro JWT:', {
+        error: jwtError.name,
+        message: jwtError.message,
+        path: req.path
+      });
       if (jwtError.name === 'TokenExpiredError') {
         return res.status(401).json({ error: 'Token expirado', expired: true });
       }

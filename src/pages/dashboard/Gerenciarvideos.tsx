@@ -757,9 +757,15 @@ export default function GerenciarVideos() {
       return;
     }
     
+    // Para vídeos SSH, garantir que a URL está correta
+    let videoUrl = video.url || '';
+    if (videoUrl.includes('/api/videos-ssh/') && !videoUrl.includes('token=')) {
+      videoUrl = `${videoUrl}${videoUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
+    }
+    
     const videoWithUrl = {
       ...video,
-      url: buildVideoUrl(video.url || '')
+      url: videoUrl
     };
     
     setVideoModalAtual(videoWithUrl);
@@ -777,13 +783,20 @@ export default function GerenciarVideos() {
       return;
     }
     
-    const videosParaPlaylist = sshVideos.map(v => ({
+    const videosParaPlaylist = sshVideos.map(v => {
+      let videoUrl = `/api/videos-ssh/stream/${v.id}`;
+      if (!videoUrl.includes('token=')) {
+        videoUrl = `${videoUrl}?token=${encodeURIComponent(token)}`;
+      }
+      
+      return {
       id: 0,
       nome: v.nome,
-      url: `/api/videos-ssh/stream/${v.id}`,
+        url: videoUrl,
       duracao: v.duration,
       tamanho: v.size
-    }));
+      };
+    });
     
     console.log('Abrindo playlist modal com vídeos:', videosParaPlaylist);
     setPlaylistModal(videosParaPlaylist);

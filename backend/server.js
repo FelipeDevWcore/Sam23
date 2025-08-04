@@ -61,6 +61,14 @@
       }
       
       if (!token) {
+        console.log('❌ Token de acesso não fornecido para /content:', {
+          path: req.path,
+          method: req.method,
+          headers: Object.keys(req.headers),
+          query: Object.keys(req.query || {}),
+          hasAuthHeader: !!authHeader,
+          hasQueryToken: !!req.query.auth_token
+        });
         return res.status(401).json({ error: 'Token de acesso requerido' });
       }
 
@@ -71,6 +79,11 @@
         
         // Adicionar dados do usuário à requisição
         req.user = decoded;
+        console.log('✅ Token validado para /content:', {
+          userId: decoded.userId,
+          email: decoded.email,
+          path: req.path
+        });
       } catch (jwtError) {
         console.error('Erro de autenticação no middleware de vídeo:', jwtError.message);
         return res.status(401).json({ error: 'Token inválido' });
