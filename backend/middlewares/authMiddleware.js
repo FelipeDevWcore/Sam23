@@ -8,7 +8,15 @@ const authMiddleware = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Token de acesso requerido' });
+      console.log('❌ Token de acesso não fornecido:', {
+        path: req.path,
+        method: req.method,
+        headers: Object.keys(req.headers)
+      });
+      return res.status(401).json({ 
+        error: 'Token de acesso requerido',
+        details: 'Faça login novamente para acessar este recurso'
+      });
     }
 
     const token = authHeader.substring(7);

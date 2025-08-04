@@ -311,7 +311,7 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
           xhrSetup: (xhr, url) => {
             xhr.withCredentials = false;
             // Adicionar token de autenticação para URLs SSH
-            if (src && src.includes('/api/videos-ssh/')) {
+            if (src && (src.includes('/api/videos-ssh/') || src.includes('/content/'))) {
               const token = localStorage.getItem('auth_token');
               if (token) {
                 xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -352,8 +352,19 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
                 errorMsg = 'Timeout ao baixar vídeo do servidor. Tente novamente.';
               } else if (data.details?.includes('401')) {
                 errorMsg = 'Erro de autenticação. Faça login novamente.';
+                // Redirecionar para login se token expirou
+                setTimeout(() => {
+                  window.location.href = '/login';
+                }, 2000);
               } else {
                 errorMsg = 'Erro ao acessar vídeo do servidor via SSH';
+              }
+            } else if (src && src.includes('/content/')) {
+              if (data.details?.includes('401')) {
+                errorMsg = 'Erro de autenticação. Faça login novamente.';
+                setTimeout(() => {
+                  window.location.href = '/login';
+                }, 2000);
               }
             }
 
@@ -387,39 +398,18 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
         video.setAttribute('preload', 'none'); // Não pré-carregar para economizar banda
       }
 
-      // Configurar múltiplas fontes para melhor compatibilidade
-      video.innerHTML = '';
-
-      // Adicionar fonte principal
-      const source = document.createElement('source');
-      source.src = videoUrl;
-
-      // Definir tipo MIME correto
-      switch (fileType) {
-        case 'mp4':
-          source.type = 'video/mp4';
-          break;
-        case 'webm':
-          source.type = 'video/webm';
-          break;
-        case 'ogg':
-          source.type = 'video/ogg';
-          break;
-        case 'video':
-          source.type = 'video/mp4'; // Default para vídeos SSH
-          break;
-        default:
-          source.type = 'video/mp4'; // Fallback
-      }
-
-      video.appendChild(source);
-
-      // Adicionar fontes alternativas para MP4
-      if (fileType === 'mp4' || fileType === 'video') {
-        const alternativeSource = document.createElement('source');
-        alternativeSource.src = videoUrl;
-        alternativeSource.type = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
-        video.appendChild(alternativeSource);
+      // Para vídeos via /content, também configurar headers de autenticação
+      if (src && src.includes('/content/')) {
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          // Para vídeos /content, adicionar token como parâmetro
+          const urlWithToken = `${src}${src.includes('?') ? '&' : '?'}auth_token=${encodeURIComponent(token)}`;
+          video.src = urlWithToken;
+        } else {
+          video.src = src;
+        }
+      } else {
+        video.src = src;
       }
 
       video.load();

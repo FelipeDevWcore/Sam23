@@ -388,6 +388,11 @@ export default function GerenciarVideos() {
     setLoadingSSH(true);
     try {
       const token = await getToken();
+      if (!token) {
+        toast.error('Token de autenticação não encontrado');
+        return;
+      }
+      
       const response = await fetch(`/api/videos-ssh/list?folder=${encodeURIComponent(folderName)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -745,6 +750,13 @@ export default function GerenciarVideos() {
   const abrirModalVideo = (video: Video) => {
     console.log('Abrindo modal para vídeo:', video);
     
+    // Verificar se há token antes de abrir o vídeo
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      toast.error('Token de autenticação não encontrado. Faça login novamente.');
+      return;
+    }
+    
     const videoWithUrl = {
       ...video,
       url: buildVideoUrl(video.url || '')
@@ -757,6 +769,13 @@ export default function GerenciarVideos() {
 
   const abrirModalPlaylist = () => {
     if (!folderSelecionada) return;
+    
+    // Verificar se há token antes de abrir a playlist
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      toast.error('Token de autenticação não encontrado. Faça login novamente.');
+      return;
+    }
     
     const videosParaPlaylist = sshVideos.map(v => ({
       id: 0,
@@ -774,13 +793,25 @@ export default function GerenciarVideos() {
 
   const openVideoInNewTab = (video: SSHVideo) => {
     // Abrir vídeo SSH em nova aba usando a URL do stream
-    const streamUrl = `/api/videos-ssh/stream/${video.id}`;
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      toast.error('Token de autenticação não encontrado. Faça login novamente.');
+      return;
+    }
+    
+    // Criar URL com token como parâmetro para nova aba
+    const streamUrl = `/api/videos-ssh/stream/${video.id}?token=${encodeURIComponent(token)}`;
     window.open(streamUrl, '_blank');
   };
 
   const checkVideoIntegrity = async (video: SSHVideo) => {
     try {
       const token = await getToken();
+      if (!token) {
+        toast.error('Token de autenticação não encontrado');
+        return;
+      }
+      
       const response = await fetch(`/api/videos-ssh/info/${video.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });

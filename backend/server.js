@@ -46,6 +46,36 @@
   // Middleware personalizado para servir arquivos de vídeo
   app.use('/content', async (req, res, next) => {
     try {
+      // Verificar autenticação para acesso a vídeos
+      let token = null;
+      
+      // Verificar token no header Authorization
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+      
+      // Verificar token no query parameter (para nova aba)
+      if (!token && req.query.auth_token) {
+        token = req.query.auth_token;
+      }
+      
+      if (!token) {
+        return res.status(401).json({ error: 'Token de acesso requerido' });
+      }
+
+      try {
+        const jwt = require('jsonwebtoken');
+        const JWT_SECRET = process.env.JWT_SECRET || 'sua_chave_secreta_super_segura_aqui';
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        // Adicionar dados do usuário à requisição
+        req.user = decoded;
+      } catch (jwtError) {
+        console.error('Erro de autenticação no middleware de vídeo:', jwtError.message);
+        return res.status(401).json({ error: 'Token inválido' });
+      }
+
       // Extrair informações do caminho
       const requestPath = req.path.startsWith('/') ? req.path : `/${req.path}`;
       console.log(`📹 Solicitação de vídeo: ${requestPath}`);
@@ -239,6 +269,7 @@
   app.use('/api/servers', serversRoutes);
  app.use('/api/players', playersRoutes);
  app.use('/api/videos-ssh', videosSSHRoutes);
+ app.use('/api/user-settings', require('./routes/user-settings'));
 
   // Rota de teste
   app.get('/api/test', (req, res) => {

@@ -94,7 +94,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const getToken = () => {
-    return localStorage.getItem('auth_token');
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      console.warn('Token de autenticação não encontrado');
+    }
+    return token;
   };
 
   const login = async (email: string, password: string) => {

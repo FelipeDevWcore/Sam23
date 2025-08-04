@@ -45,6 +45,12 @@ const DashboardLayout: React.FC = () => {
   const loadUserSettings = async () => {
     try {
       const token = await getToken();
+      if (!token) {
+        console.warn('Token não encontrado, usando configurações padrão');
+        setMenuItems(defaultMenuItems);
+        return;
+      }
+      
       const response = await fetch('/api/user-settings', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -57,6 +63,7 @@ const DashboardLayout: React.FC = () => {
           setMenuItems(defaultMenuItems);
         }
       } else {
+        console.warn('Erro ao carregar configurações do usuário, usando padrão');
         setMenuItems(defaultMenuItems);
       }
     } catch (error) {

@@ -247,6 +247,8 @@ router.put('/:videoId/rename', authMiddleware, async (req, res) => {
 // GET /api/videos-ssh/list - Lista vídeos diretamente do servidor via SSH
 router.get('/list', authMiddleware, async (req, res) => {
   try {
+    console.log('📋 Listando vídeos SSH para usuário:', req.user.id);
+    
     const userId = req.user.id;
     const userLogin = req.user.email ? req.user.email.split('@')[0] : `user_${userId}`;
     const { folder } = req.query;
@@ -262,6 +264,8 @@ router.get('/list', authMiddleware, async (req, res) => {
     // Listar vídeos do servidor
     const videos = await VideoSSHManager.listVideosFromServer(serverId, userLogin, folder);
 
+    console.log(`✅ Retornando ${videos.length} vídeos SSH para usuário ${userLogin}`);
+    
     res.json({
       success: true,
       videos: videos,
@@ -331,6 +335,34 @@ router.get('/info/:videoId', authMiddleware, async (req, res) => {
 // GET /api/videos-ssh/stream/:videoId - Stream do vídeo via SSH
 router.get('/stream/:videoId', authMiddleware, async (req, res) => {
   try {
+    // Verificar token também via query parameter para suporte a nova aba
+    if (!req.user && req.query.token) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const JWT_SECRET = process.env.JWT_SECRET || 'sua_chave_secreta_super_segura_aqui';
+        const decoded = jwt.verify(req.query.token, JWT_SECRET);
+        
+        // Buscar dados do usuário
+        const [rows] = await db.execute(
+          'SELECT codigo, identificacao as nome, email FROM streamings WHERE codigo = ?',
+          [decoded.userId]
+        );
+        
+        if (rows.length > 0) {
+          req.user = {
+            id: rows[0].codigo,
+            nome: rows[0].nome,
+            email: rows[0].email
+          };
+        }
+      } catch (tokenError) {
+        return res.status(401).json({
+          success: false,
+          error: 'Token inválido'
+        });
+      }
+    }
+    
     const { videoId } = req.params;
     const userId = req.user.id;
     const userLogin = req.user.email.split('@')[0];
