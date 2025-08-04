@@ -328,41 +328,97 @@ router.get('/info/:videoId', authMiddleware, async (req, res) => {
       success: false,
       error: 'Erro ao obter informações do vídeo',
       details: error.message
+// Middleware específico para verificar token via query parameter (para nova aba)
+const authMiddlewareWithQuery = async (req, res, next) => {
+  try {
+    // Primeiro tentar o middleware padrão
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // Se não há header, tentar query parameter
+      if (req.query.token) {
+        try {
+          const jwt = require('jsonwebtoken');
+          const JWT_SECRET = process.env.JWT_SECRET || 'sua_chave_secreta_super_segura_aqui';
+          const decoded = jwt.verify(req.query.token, JWT_SECRET);
+          
+          // Buscar dados do usuário baseado no tipo
+          let rows = [];
+          
+          if (decoded.tipo === 'revenda') {
+            [rows] = await db.execute(
+              'SELECT codigo, nome, email, streamings, espectadores, bitrate, espaco, status, "revenda" as tipo FROM revendas WHERE codigo = ? AND status = 1',
+              [decoded.userId]
+            );
+          } else if (decoded.tipo === 'streaming') {
+            [rows] = await db.execute(
+              `SELECT 
+                s.codigo, 
+                s.identificacao as nome, 
+                s.email, 
+                1 as streamings, 
+                s.espectadores, 
+                s.bitrate, 
+                s.espaco, 
+                s.status,
+                "streaming" as tipo,
+                s.codigo_cliente,
+                s.codigo_servidor
+               FROM streamings s 
+               WHERE s.codigo = ? AND s.status = 1`,
+              [decoded.userId]
+            );
+          }
+
+          if (rows.length === 0) {
+            return res.status(401).json({ error: 'Usuário não encontrado ou inativo' });
+          }
     });
+          const user = rows[0];
+          req.user = {
+            id: user.codigo,
+            nome: user.nome,
+            email: user.email,
+            tipo: user.tipo || 'streaming',
+            streamings: user.streamings,
+            espectadores: user.espectadores,
+            bitrate: user.bitrate,
+            espaco: user.espaco,
+            codigo_cliente: user.codigo_cliente || null,
+            codigo_servidor: user.codigo_servidor || null
+          };
   }
+          return next();
+        } catch (jwtError) {
+          if (jwtError.name === 'TokenExpiredError') {
+            return res.status(401).json({ error: 'Token expirado', expired: true });
+          }
+          return res.status(401).json({ error: 'Token inválido' });
+        }
+      }
+      
+      console.log('❌ Token de acesso não fornecido:', {
+        path: req.path,
+        method: req.method,
+        headers: Object.keys(req.headers)
+      });
+      return res.status(401).json({ 
+        error: 'Token de acesso requerido',
+        details: 'Faça login novamente para acessar este recurso'
+      });
+    }
 });
+    // Se há header, usar middleware padrão
+    return authMiddleware(req, res, next);
+  } catch (error) {
+    console.error('Erro no middleware de autenticação SSH:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+};
 
 // GET /api/videos-ssh/stream/:videoId - Stream do vídeo via SSH
-router.get('/stream/:videoId', authMiddleware, async (req, res) => {
+router.get('/stream/:videoId', authMiddlewareWithQuery, async (req, res) => {
   try {
-    // Verificar token também via query parameter para suporte a nova aba
-    if (!req.user && req.query.token) {
-      try {
-        const jwt = require('jsonwebtoken');
-        const JWT_SECRET = process.env.JWT_SECRET || 'sua_chave_secreta_super_segura_aqui';
-        const decoded = jwt.verify(req.query.token, JWT_SECRET);
-        
-        // Buscar dados do usuário
-        const [rows] = await db.execute(
-          'SELECT codigo, identificacao as nome, email FROM streamings WHERE codigo = ?',
-          [decoded.userId]
-        );
-        
-        if (rows.length > 0) {
-          req.user = {
-            id: rows[0].codigo,
-            nome: rows[0].nome,
-            email: rows[0].email
-          };
-        }
-      } catch (tokenError) {
-        return res.status(401).json({
-          success: false,
-          error: 'Token inválido'
-        });
-      }
-    }
-    
     const { videoId } = req.params;
     const userId = req.user.id;
     const userLogin = req.user.email.split('@')[0];

@@ -396,10 +396,19 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
       // Para vídeos SSH, configurar timeout maior
       if (src && src.includes('/api/videos-ssh/')) {
         video.setAttribute('preload', 'none'); // Não pré-carregar para economizar banda
+        
+        // Para vídeos SSH, adicionar token como parâmetro na URL
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          const urlWithToken = `${videoUrl}${videoUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
+          video.src = urlWithToken;
+        } else {
+          video.src = videoUrl;
+        }
       }
 
       // Para vídeos via /content, também configurar headers de autenticação
-      if (src && src.includes('/content/')) {
+      else if (src && src.includes('/content/')) {
         const token = localStorage.getItem('auth_token');
         if (token) {
           // Para vídeos /content, adicionar token como parâmetro
@@ -412,7 +421,10 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
         video.src = src;
       }
 
-      video.load();
+      // Só chamar load() se não for SSH (pois já foi definido acima)
+      if (!src.includes('/api/videos-ssh/')) {
+        video.load();
+      }
 
       if (autoplay) {
         setTimeout(() => {
